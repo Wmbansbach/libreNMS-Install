@@ -1,0 +1,104 @@
+#!/bin/bash
+# Install LibreNMS on Raspian / Ubuntu
+
+#################################################################
+# Install Packages
+
+apt -y install software-properties-common
+apt -y update
+apt -y install curl apache2 composer fping git graphviz imagemagick libapache2-mod-php7.3 mariadb-client mariadb-server mtr-tiny nmap php7.3-cli php7.3-curl php7.3-gd php7.3-json php7.3-mbstring php7.3-mysql php7.3-snmp php7.3-xml php7.3-zip python-memcache python-mysqldb rrdtool snmp snmpd whois
+
+# Add user
+
+/usr/sbin/useradd librenms -d /opt/librenms -M -r
+usermod -a -G librenms www-data
+
+# Git LibreNMS
+
+cd /opt || exit
+git clone https://github.com/librenms/librenms.git
+
+# Set Group Ownership & Permissions
+
+chown -R librenms:librenms /opt/librenms
+chmod 770 /opt/librenms
+
+apt-get -y install acl
+setfacl -d -m g::rwx /opt/librenms/rrd /opt/librenms/logs /opt/librenms/bootstrap/cache/ /opt/librenms/storage/
+setfacl -R -m g::rwx /opt/librenms/rrd /opt/librenms/logs /opt/librenms/bootstrap/cache/ /opt/librenms/storage/
+
+
+# Install PHP Dependencies
+
+sudo -i -u librenms bash << EOF
+./scripts/composer_wrapper.php install --no-dev
+exit
+EOF
+
+# Configure MySQL Database Server
+
+systemctl restart mysql
+
+BIN_MYSQL=$(which mysql)
+SQL1="CREATE DATABASE IF NOT EXISTS librenms;"
+SQL2="CREATE USER 'librenmss'@'localhost' IDENTIFIED BY 'password';"
+SQL3="GRANT ALL PRIVILEGES ON librenms.* TO 'librenms'@'localhost';"
+SQL4="FLUSH PRIVILEGES;"
+
+echo "Please enter root user MySQL password!"
+read -r rootPassword
+$BIN_MYSQL -v -uroot -p"${rootPassword}" -e"${SQL1}${SQL2}${SQL3}${SQL4}"
+
+# Append values to db config file
+sed -i "13a innodb_file_per_table=1\nlower_case_table_names=0" /etc/mysql/mariadb.conf.d/50-server.cnf
+
+systemctl restart mysql
+
+# Configure PHP and Web Server
+sed -i "956a date.timezone = America/New_York" /etc/php/7.3/cli/php.ini
+sed -i "956a date.timezone = America/New_York" /etc/php/7.3/apache2/php.ini
+
+a2enmod php7.3
+a2dismod mpm_event
+a2enmod mpm_prefork
+
+# Configure Apache
+echo "<VirtualHost *:80>
+  DocumentRoot /opt/librenms/html/
+  ServerName  librenms.example.com
+
+  AllowEncodedSlashes NoDecode
+  <Directory "/opt/librenms/html/">
+    Require all granted
+    AllowOverride All
+    Options FollowSymLinks MultiViews
+  </Directory>
+</VirtualHost>" >> /etc/apache2/sites-available/librenms.conf
+
+a2dissite 000-default
+a2ensite librenms.conf
+a2enmod rewrite
+
+systemctl restart apache2
+
+#Configure SNMPD
+
+cp /opt/librenms/snmpd.conf.example /etc/snmp/snmpd.conf
+
+read -r -sp "Enter a community secret: " comm_str
+
+sudo sed -i -- "s/RANDOMSTRINGGOESHERE/$comm_str/g" /etc/snmp/snmpd.conf
+
+curl -o /usr/bin/distro https://raw.githubusercontent.com/librenms/librenms-agent/master/snmp/distro
+chmod +x /usr/bin/distro
+systemctl restart snmpd
+
+# Setup Cron Job
+
+cp /opt/librenms/librenms.nonroot.cron /etc/cron.d/librenms
+
+echo Initial Installation Successful!!!
+
+exit 1
+
+
