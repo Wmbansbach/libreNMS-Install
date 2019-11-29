@@ -4,4 +4,4 @@ Install &amp; configure pre-requisite dependencies for Libre Network Management 
 Quick Start
 
 1. Change permissions for file to execute: chmod u+x yourfile
-2. run sudo ./libreNMS-Install
+2. sudo ./libreNMS-Install
