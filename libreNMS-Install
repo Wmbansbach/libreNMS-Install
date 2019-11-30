@@ -85,7 +85,7 @@ systemctl restart apache2
 
 cp /opt/librenms/snmpd.conf.example /etc/snmp/snmpd.conf
 
-read -r -sp "Enter a community secret: " comm_str
+read -r -sp "Enter a community string: " comm_str
 
 sudo sed -i -- "s/RANDOMSTRINGGOESHERE/$comm_str/g" /etc/snmp/snmpd.conf
 
