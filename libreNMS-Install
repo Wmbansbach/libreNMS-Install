@@ -38,14 +38,15 @@ EOF
 
 systemctl restart mysql
 
+echo "Please enter root user MySQL password: "
+read -r rootPassword
+
 BIN_MYSQL=$(which mysql)
 SQL1="CREATE DATABASE IF NOT EXISTS librenms;"
-SQL2="CREATE USER 'librenms'@'localhost' IDENTIFIED BY 'password';"
+SQL2="CREATE USER 'librenms'@'localhost' IDENTIFIED BY "${rootPassword};"
 SQL3="GRANT ALL PRIVILEGES ON librenms.* TO 'librenms'@'localhost';"
 SQL4="FLUSH PRIVILEGES;"
 
-echo "Please enter root user MySQL password: "
-read -r rootPassword
 $BIN_MYSQL -v -uroot -p"${rootPassword}" -e"${SQL1}${SQL2}${SQL3}${SQL4}"
 
 # Append values to db config file
