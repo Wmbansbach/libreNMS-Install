@@ -43,7 +43,7 @@ read -r rootPassword
 
 BIN_MYSQL=$(which mysql)
 SQL1="CREATE DATABASE IF NOT EXISTS librenms;"
-SQL2="CREATE USER 'librenms'@'localhost' IDENTIFIED BY "${rootPassword};"
+SQL2="CREATE USER 'librenms'@'localhost' IDENTIFIED BY ${rootPassword}";
 SQL3="GRANT ALL PRIVILEGES ON librenms.* TO 'librenms'@'localhost';"
 SQL4="FLUSH PRIVILEGES;"
 
